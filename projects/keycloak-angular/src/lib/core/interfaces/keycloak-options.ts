@@ -139,4 +139,6 @@ export interface KeycloakOptions {
    * The default is a function that always returns `true`.
    */
   shouldUpdateToken?: (request: HttpRequest<unknown>) => boolean;
+
+  keycloakLoginOptions?: Keycloak.KeycloakLoginOptions;
 }
