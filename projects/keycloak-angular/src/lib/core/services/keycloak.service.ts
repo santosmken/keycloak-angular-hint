@@ -29,6 +29,8 @@ import { KeycloakEvent, KeycloakEventType } from '../interfaces/keycloak-event';
  */
 @Injectable()
 export class KeycloakService {
+
+  private _keycloakLoginOptions: Keycloak.KeycloakLoginOptions = null;
   /**
    * Keycloak-js instance.
    */
@@ -178,7 +180,8 @@ export class KeycloakService {
     initOptions,
     updateMinValidity = 20,
     shouldAddToken = () => true,
-    shouldUpdateToken = () => true
+    shouldUpdateToken = () => true,
+    keycloakLoginOptions,
   }: KeycloakOptions): void {
     this._enableBearerInterceptor = enableBearerInterceptor;
     this._loadUserProfileAtStartUp = loadUserProfileAtStartUp;
@@ -189,6 +192,7 @@ export class KeycloakService {
     this._updateMinValidity = updateMinValidity;
     this.shouldAddToken = shouldAddToken;
     this.shouldUpdateToken = shouldUpdateToken;
+    this._keycloakLoginOptions = keycloakLoginOptions;
   }
 
   /**
@@ -240,6 +244,14 @@ export class KeycloakService {
     this._instance = new Keycloak(config);
     this.bindsKeycloakEvents();
 
+    if (this._keycloakLoginOptions !== null) {
+      const kcLogin = this._instance.login;
+      this._instance.login = (keycloakLoginOptions: Keycloak.KeycloakLoginOptions): any => {
+        Object.assign(keycloakLoginOptions, this._keycloakLoginOptions);
+        kcLogin(keycloakLoginOptions);
+      };
+    }
+
     const authenticated = await this._instance.init(initOptions);
 
     if (authenticated && this._loadUserProfileAtStartUp) {
@@ -271,7 +283,11 @@ export class KeycloakService {
    * A void Promise if the login is successful and after the user profile loading.
    */
   public async login(options: Keycloak.KeycloakLoginOptions = {}) {
-    await this._instance.login(options);
+    if ( this._keycloakLoginOptions !== null ) { // do the check for already provided login options and use those.
+      await this._instance.login(this._keycloakLoginOptions);
+    } else {
+      await this._instance.login(options);
+    }
 
     if (this._loadUserProfileAtStartUp) {
       await this.loadUserProfile();
